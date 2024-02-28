@@ -16,3 +16,7 @@ the kind of block they want. When we receive the block via the `ExecuteBlock` st
 4. What happens if the conductor is connected to an out of sync SS validator? They wouldn't get the latest actual block. Either the SS team has to make sure that this 
 never happens by not sending blocks to the conductor if its not in sync or the Rollup team has to make sure that they are connected to a SS validator that is in sync. This could be an additional check
 the rollup team would have to make. The conductor could have a fallback mechanism too where it tries to connect to another SS validator if the current one is out of sync.
+
+## Notes
+
+I wanted to use SSE based beacon APIs on eth(https://ethereum.github.io/beacon-APIs/#/Events/eventstream). But i think this is not enabled on all nodes. Need to investigate it but not a priority. We are currently polling an API to get the latest finalized block.
