@@ -129,7 +129,7 @@ func (a *App) postEthBlockData(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) Run() {
 	// run execution api
-	// implement shutdown here
+	// TODO - implement graceful shutdown here
 	go func() {
 		server := a.makeExecutionServer()
 		lis, err := net.Listen("tcp", a.executionRPC)
