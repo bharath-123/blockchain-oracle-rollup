@@ -21,6 +21,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Debugf("Read config from env: %+v\n", cfg)
+	cfg.SeqPrivate = "00fd4d6af5ac34d29d63a04ecf7da1ccfcbcdf7f7ed4042b8975e1c54e96d685"
 
 	ethBlockData := make(chan rollup.EthBlockData)
 	shutdownSignal := make(chan bool)

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -104,6 +105,7 @@ func (s *ExecutionServiceServerV1Alpha2) ExecuteBlock(ctx context.Context, req *
 		return nil, errors.New("invalid prev block hash")
 	}
 	txs := []Transaction{}
+	log.WithField("txs", len(req.Transactions)).Debugf("unmarshalling transactions")
 	for _, txBytes := range req.Transactions {
 		tx := &Transaction{}
 		if err := json.Unmarshal(txBytes, tx); err != nil {
@@ -120,8 +122,17 @@ func (s *ExecutionServiceServerV1Alpha2) ExecuteBlock(ctx context.Context, req *
 			},
 		).Debug("unmarshalled transaction")
 	}
-	block := NewBlock(req.PrevBlockHash, uint32(len(s.rollup.Blocks)), txs, req.Timestamp.AsTime())
-	s.rollup.Blocks = append(s.rollup.Blocks, block)
+	block := Block{
+		ParentHash: [32]byte{},
+		Hash:       [32]byte{},
+		Height:     0,
+		Timestamp:  time.Now(),
+		Txs:        []Transaction{},
+	}
+	if len(req.Transactions) > 0 {
+		block = NewBlock(req.PrevBlockHash, uint32(len(s.rollup.Blocks)), txs, req.Timestamp.AsTime())
+		s.rollup.Blocks = append(s.rollup.Blocks, block)
+	}
 
 	blockPb, err := block.ToPb()
 	if err != nil {
@@ -176,18 +187,20 @@ func (s *ExecutionServiceServerV1Alpha2) UpdateCommitmentState(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
-	softBlock, err := s.rollup.GetSingleBlock(softHeight)
-	if err != nil {
-		return nil, err
-	}
+	//softBlock, err := s.rollup.GetSingleBlock(softHeight)
+	//if err != nil {
+	//	return nil, err
+	//}
 
-	// compare actual blocks to commit state
-	if !bytes.Equal(softBlock.Hash[:], req.CommitmentState.Soft.Hash) {
-		return nil, errors.New("soft block hash mismatch")
-	}
 	if !bytes.Equal(firmBlock.Hash[:], req.CommitmentState.Firm.Hash) {
+		log.Debug("UpdateCommitmentState completed with error: firm block hash mismatch")
 		return nil, errors.New("firm block hash mismatch")
 	}
+	// compare actual blocks to commit state
+	//if !bytes.Equal(softBlock.Hash[:], req.CommitmentState.Soft.Hash) {
+	//	log.Debug("UpdateCommitmentState completed with error: soft block hash mismatch")
+	//	return nil, errors.New("soft block hash mismatch")
+	//}
 
 	// update the commitment state
 	s.rollup.soft = softHeight

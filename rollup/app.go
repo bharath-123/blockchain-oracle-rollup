@@ -1,7 +1,6 @@
 package rollup
 
 import (
-	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
@@ -32,7 +31,7 @@ type App struct {
 }
 
 func NewApp(cfg Config, ethBlockDataRcvr chan EthBlockData) *App {
-	log.Debugf("Creating new messenger app with config: %v", cfg)
+	log.Debugf("Creating new rollup app with config: %v", cfg)
 
 	rollup := NewRollup()
 	router := mux.NewRouter()
@@ -49,7 +48,7 @@ func NewApp(cfg Config, ethBlockDataRcvr chan EthBlockData) *App {
 	return &App{
 		executionRPC:     cfg.ConductorRpc,
 		sequencerRPC:     cfg.SequencerRpc,
-		sequencerClient:  *NewSequencerClient(cfg.SequencerRpc, rollupID[:], private),
+		sequencerClient:  *NewSequencerClient("https://rpc.sequencer.dusk-3.devnet.astria.org", rollupID[:], private),
 		restRouter:       router,
 		restAddr:         cfg.RESTApiPort,
 		rollup:           &rollup,
@@ -132,12 +131,15 @@ func (a *App) Run() {
 	// TODO - implement graceful shutdown here
 	go func() {
 		server := a.makeExecutionServer()
-		lis, err := net.Listen("tcp", a.executionRPC)
+		log.Debug("Listening to execution service")
+		lis, err := net.Listen("tcp", "localhost:50051")
 		if err != nil {
 			log.Fatalf("failed to listen: %v", err)
 		}
+		log.Debug("Registering execution service")
 		grpcServer := grpc.NewServer()
 		astriaGrpc.RegisterExecutionServiceServer(grpcServer, server)
+		log.Debugf("Serving the grpc Server at %s\n", lis.Addr().String())
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
@@ -176,10 +178,4 @@ func (a *App) Run() {
 			log.Errorf("error listening for rest api server: %s\n", err)
 		}
 	}()
-
-	log.Info("Shutting down server...")
-	if err := server.Shutdown(context.Background()); err != nil {
-		log.Fatalf("Could not gracefully shutdown the server: %v\n", err)
-	}
-	log.Info("Server gracefully stopped")
 }

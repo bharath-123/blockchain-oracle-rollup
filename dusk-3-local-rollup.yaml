@@ -1,0 +1,19 @@
+version: '3'
+services:
+  conductor:
+    image: ghcr.io/astriaorg/conductor:0.11.1
+    environment:
+      ASTRIA_CONDUCTOR_LOG: "astria_conductor=debug"
+      ASTRIA_CONDUCTOR_EXECUTION_RPC_URL: "http://host.docker.internal:50051"
+      ASTRIA_CONDUCTOR_EXECUTION_COMMIT_LEVEL: "SoftOnly"
+      ASTRIA_CONDUCTOR_CELESTIA_NODE_URL: ""
+      ASTRIA_CONDUCTOR_CELESTIA_BEARER_TOKEN: ""
+      ASTRIA_CONDUCTOR_SEQUENCER_URL: "wss://rpc.sequencer.dusk-3.devnet.astria.org/websocket"
+      ASTRIA_CONDUCTOR_ENABLE_OPTIMISM: false
+      ASTRIA_CONDUCTOR_ETHEREUM_L1_URL: "https://rpc.ankr.com/eth_goerli"
+      ASTRIA_CONDUCTOR_OPTIMISM_PORTAL_CONTRACT_ADDRESS: ""
+      ASTRIA_CONDUCTOR_INITIAL_ETHEREUM_L1_BLOCK_HEIGHT: 1
+      ASTRIA_CONDUCTOR_INITIAL_SEQUENCER_BLOCK_HEIGHT: 1761327
+      ASTRIA_CONDUCTOR_CHAIN_ID: blockchain-oracle-rollup
+      ASTRIA_CONDUCTOR_FORCE_STDOUT: true
+      ASTRIA_CONDUCTOR_NO_OTEL: true

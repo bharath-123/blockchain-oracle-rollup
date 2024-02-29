@@ -53,12 +53,13 @@ func NewChainListeners(EthereumRpc string, ethDataSink chan EthBlockData, shutdo
 }
 
 func (cl *ChainListeners) Run() {
+	ticker := time.Tick(15 * time.Second)
 	for {
 		select {
-		default:
+		case <-ticker:
 			logrus.Info("Making request to Ethereum RPC")
 			// template to make a http GET request
-			resp, err := http.Get(fmt.Sprintf("%s/eth/v2/beacon/blocks/finalized", cl.EthereumRpc))
+			resp, err := http.Get(fmt.Sprintf("%s/eth/v2/beacon/blocks/head", cl.EthereumRpc))
 			if err != nil {
 				logrus.Error("Error making request to Ethereum RPC: ", err)
 				continue
@@ -89,8 +90,8 @@ func (cl *ChainListeners) Run() {
 
 			fmt.Printf("ethBlockData is %+v\n", ethBlockData)
 
-			time.Sleep(2 * time.Second)
 		case <-cl.ShutdownSignal:
+			logrus.Debugf("Shutting ethereum chain listener down!")
 			break
 		}
 	}

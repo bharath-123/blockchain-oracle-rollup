@@ -111,8 +111,7 @@ func NewRollup() Rollup {
 }
 
 func (r *Rollup) GetSingleBlock(height uint32) (*Block, error) {
-	logrus.Debugf("getting block at height %d\n", height)
-	if height > uint32(len(r.Blocks)) {
+	if height >= uint32(len(r.Blocks)) {
 		return nil, errors.New("block not found")
 	}
 	return &r.Blocks[height], nil
