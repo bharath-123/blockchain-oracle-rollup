@@ -19,4 +19,5 @@ the rollup team would have to make. The conductor could have a fallback mechanis
 
 ## Notes
 
-I wanted to use SSE based beacon APIs on eth(https://ethereum.github.io/beacon-APIs/#/Events/eventstream). But i think this is not enabled on all nodes. Need to investigate it but not a priority. We are currently polling an API to get the latest finalized block.
+1. I wanted to use SSE based beacon APIs on eth(https://ethereum.github.io/beacon-APIs/#/Events/eventstream). But i think this is not enabled on all nodes. Need to investigate it but not a priority. We are currently polling an API to get the latest finalized block.
+2. This technically is not a decentralized oracle. A decentralized oracle requires multiple non-colluding parties to send data to the rollup. We have technically used astria to get a decently decentralized settlement/availability and sequencing layer.
