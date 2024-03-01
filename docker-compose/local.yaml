@@ -1,8 +1,7 @@
 version: '3'
 services:
 #  frontend:
-#    build:
-#      context: ../frontend
+#    image: b-oracle-frontend
 #    environment:
 #      VITE_APP_WEBSOCKET_URL: "ws://localhost:8080/ws"
 #      VITE_APP_API_URL: "http://localhost:8080"

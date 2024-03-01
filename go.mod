@@ -10,6 +10,8 @@ require (
 	github.com/attestantio/go-eth2-client v0.19.10
 	github.com/cometbft/cometbft v0.38.5
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.1
+	github.com/rs/cors v1.8.3
 	github.com/sethvargo/go-envconfig v1.0.0
 	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/grpc v1.62.0
@@ -48,7 +50,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect

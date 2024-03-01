@@ -9,13 +9,24 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"sync"
 
+	"github.com/gorilla/websocket"
+	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 
 	astriaGrpc "buf.build/gen/go/astria/execution-apis/grpc/go/astria/execution/v1alpha2/executionv1alpha2grpc"
 	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 )
+
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all connections
+	},
+}
 
 // App is the main application struct, containing all the necessary components.
 type App struct {
@@ -28,17 +39,21 @@ type App struct {
 	rollupName       string
 	rollupID         []byte
 	ethBlockDataRcvr chan EthBlockData
+	wsClients        WSClientList
+	newBlockChan     chan Block
+	lock             sync.RWMutex
 }
 
 func NewApp(cfg Config, ethBlockDataRcvr chan EthBlockData) *App {
 	log.Debugf("Creating new rollup app with config: %v", cfg)
 
-	rollup := NewRollup()
+	newBlockChan := make(chan Block, 20)
+
+	rollup := NewRollup(newBlockChan)
 	router := mux.NewRouter()
 
 	rollupID := sha256.Sum256([]byte(cfg.RollupName))
 
-	log.Debug("NewApp: seqPrivate is: ", cfg.SeqPrivate)
 	// sequencer private key
 	privateKeyBytes, err := hex.DecodeString(cfg.SeqPrivate)
 	if err != nil {
@@ -56,6 +71,8 @@ func NewApp(cfg Config, ethBlockDataRcvr chan EthBlockData) *App {
 		rollupName:       cfg.RollupName,
 		rollupID:         rollupID[:],
 		ethBlockDataRcvr: ethBlockDataRcvr,
+		newBlockChan:     newBlockChan,
+		wsClients:        map[*WSClient]bool{},
 	}
 }
 
@@ -67,13 +84,44 @@ func (a *App) makeExecutionServer() *ExecutionServiceServerV1Alpha2 {
 // setupRestRoutes sets up the routes for the REST API.
 func (a *App) setupRestRoutes() {
 	a.restRouter.HandleFunc("/block/{height}", a.getBlock).Methods("GET")
+	a.restRouter.HandleFunc("/ws", a.serveWS)
 }
 
 // makeRestServer creates a new HTTP server for the REST API.
 func (a *App) makeRestServer() *http.Server {
 	return &http.Server{
 		Addr:    a.restAddr,
-		Handler: a.restRouter,
+		Handler: cors.Default().Handler(a.restRouter),
+	}
+}
+
+func (a *App) serveWS(w http.ResponseWriter, r *http.Request) {
+	conn, err := wsUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Errorf("Failed to upgrade HTTP to WebSocket: %v", err)
+		return
+	}
+
+	client := NewWSClient(conn, a)
+	a.addWSClient(client)
+	go client.WaitForMessages()
+	log.Debug("new ws client connected")
+}
+
+func (a *App) addWSClient(client *WSClient) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	a.wsClients[client] = true
+}
+
+func (a *App) removeWSClient(client *WSClient) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	if _, ok := a.wsClients[client]; ok {
+		// close connection
+		client.conn.Close()
+		// remove
+		delete(a.wsClients, client)
 	}
 }
 
@@ -161,6 +209,31 @@ func (a *App) Run() {
 					continue
 				}
 				log.WithField("responseCode", resp.Code).Debug("transaction submission result")
+			}
+		}
+	}()
+
+	go func() {
+		for block := range a.newBlockChan {
+			// only write blocks with transactions
+			if len(block.Txs) == 0 {
+				continue
+			}
+
+			for _, tx := range block.Txs {
+				txJson, err := json.Marshal(tx)
+				if err != nil {
+					log.Errorf("Failed to marshal transaction: %v", err)
+					continue
+				}
+
+				for client := range a.wsClients {
+					select {
+					case client.egress <- txJson:
+					default:
+						log.Warnf("Could not send transaction to ws client: %s", txJson)
+					}
+				}
 			}
 		}
 	}()
