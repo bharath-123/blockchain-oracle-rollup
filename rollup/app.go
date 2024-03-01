@@ -38,6 +38,7 @@ func NewApp(cfg Config, ethBlockDataRcvr chan EthBlockData) *App {
 
 	rollupID := sha256.Sum256([]byte(cfg.RollupName))
 
+	log.Debug("NewApp: seqPrivate is: ", cfg.SeqPrivate)
 	// sequencer private key
 	privateKeyBytes, err := hex.DecodeString(cfg.SeqPrivate)
 	if err != nil {
@@ -48,7 +49,7 @@ func NewApp(cfg Config, ethBlockDataRcvr chan EthBlockData) *App {
 	return &App{
 		executionRPC:     cfg.ConductorRpc,
 		sequencerRPC:     cfg.SequencerRpc,
-		sequencerClient:  *NewSequencerClient("https://rpc.sequencer.dusk-3.devnet.astria.org", rollupID[:], private),
+		sequencerClient:  *NewSequencerClient("http://cometbft:26657", rollupID[:], private),
 		restRouter:       router,
 		restAddr:         cfg.RESTApiPort,
 		rollup:           &rollup,

@@ -21,10 +21,10 @@ type Transaction struct {
 func HashTxs(txs []Transaction) ([32]byte, error) {
 	txBytes := [][]byte{}
 	for _, tx := range txs {
-		if bytes, err := json.Marshal(tx); err != nil {
+		if bs, err := json.Marshal(tx); err != nil {
 			return [32]byte{}, err
 		} else {
-			txBytes = append(txBytes, bytes)
+			txBytes = append(txBytes, bs)
 		}
 	}
 
