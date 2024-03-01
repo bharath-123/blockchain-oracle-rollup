@@ -25,7 +25,7 @@ type SequencerClient struct {
 func NewSequencerClient(sequencerAddr string, rollupId []byte, private ed25519.PrivateKey) *SequencerClient {
 	log.Debug("creating new sequencer client")
 	signer := client.NewSigner(private)
-
+	log.Debugf("NewSequencerClient: private key is: %s", private)
 	// default tendermint RPC endpoint
 	c, err := client.NewClient(sequencerAddr)
 	if err != nil {
@@ -45,60 +45,74 @@ func (sc *SequencerClient) broadcastTxSync(tx *astriaPb.SignedTransaction) (*ten
 	return sc.c.BroadcastTxSync(context.Background(), tx)
 }
 
-// SequenceTx sends a tx to the astria shared sequencer..
+// SendMessage sends a message as a transaction.
 func (sc *SequencerClient) SequenceTx(tx Transaction) (*tendermintPb.ResultBroadcastTx, error) {
-	log.Debug("sending message")
+	log.Debug("sending eth block data!")
 	data, err := json.Marshal(tx)
 	if err != nil {
 		return nil, err
 	}
+	log.Debugf("SequenceTx: signing key is: %s", sc.signer.Address())
+	log.Debugf("SequenceTx: data: %s", data)
+	log.Debugf("SequenceTx: nonce is : %d\n", sc.nonce)
 
-	log.WithFields(log.Fields{
-		"ethBlockData": tx.FinalizedEthBlockData,
-	}).Debug("submitting tx to sequencer.")
-
-	currentNonce := sc.nonce
-	resp := &tendermintPb.ResultBroadcastTx{}
-	// retry till we get it right if there is an issue with the nonce
-	for {
-		unsigned := &astriaPb.UnsignedTransaction{
-			Nonce: currentNonce,
-			Actions: []*astriaPb.Action{
-				{
-					Value: &astriaPb.Action_SequenceAction{
-						SequenceAction: &astriaPb.SequenceAction{
-							RollupId: sc.rollupId,
-							Data:     data,
-						},
+	unsigned := &astriaPb.UnsignedTransaction{
+		Nonce: sc.nonce,
+		Actions: []*astriaPb.Action{
+			{
+				Value: &astriaPb.Action_SequenceAction{
+					SequenceAction: &astriaPb.SequenceAction{
+						RollupId: sc.rollupId,
+						Data:     data,
 					},
 				},
 			},
-		}
+		},
+	}
 
-		signed, err := sc.signer.SignTransaction(unsigned)
+	signed, err := sc.signer.SignTransaction(unsigned)
+	if err != nil {
+		panic(err)
+	}
+
+	log.WithFields(log.Fields{
+		"ethBlockData": data,
+	}).Debug("submitting tx to sequencer.")
+
+	resp, err := sc.broadcastTxSync(signed)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Code == 4 {
+		// fetch new nonce
+		newNonce, err := sc.c.GetNonce(context.Background(), sc.signer.Address())
 		if err != nil {
-			panic(err)
+			return nil, err
+		}
+		sc.nonce = newNonce
+
+		// create new tx
+		unsigned = &astriaPb.UnsignedTransaction{
+			Nonce:   sc.nonce,
+			Actions: unsigned.Actions,
+		}
+		signed, err = sc.signer.SignTransaction(unsigned)
+		if err != nil {
+			return nil, err
 		}
 
+		// submit new tx
 		resp, err = sc.broadcastTxSync(signed)
 		if err != nil {
 			return nil, err
 		}
-		if resp.Code == 4 {
-			// fetch new nonce
-			newNonce, err := sc.c.GetNonce(context.Background(), sc.signer.Address())
-			if err != nil {
-				return nil, err
-			}
-			currentNonce = newNonce
-			sc.nonce = currentNonce
-			continue
-		} else if resp.Code != 0 {
+		if resp.Code != 0 {
 			return nil, fmt.Errorf("unexpected error code: %d", resp.Code)
 		}
-		// we are good since the request successfully executed as of now
-		break
+	} else if resp.Code != 0 {
+		return nil, fmt.Errorf("unexpected error code: %d with logs: %s", resp.Code, resp.Log)
 	}
+	sc.nonce++
 
 	return resp, nil
 }

@@ -21,10 +21,10 @@ type Transaction struct {
 func HashTxs(txs []Transaction) ([32]byte, error) {
 	txBytes := [][]byte{}
 	for _, tx := range txs {
-		if bytes, err := json.Marshal(tx); err != nil {
+		if bs, err := json.Marshal(tx); err != nil {
 			return [32]byte{}, err
 		} else {
-			txBytes = append(txBytes, bytes)
+			txBytes = append(txBytes, bs)
 		}
 	}
 
@@ -97,16 +97,18 @@ func GenesisBlock() Block {
 }
 
 type Rollup struct {
-	Blocks []Block
-	soft   uint32
-	firm   uint32
+	Blocks    []Block
+	soft      uint32
+	firm      uint32
+	BlockChan chan Block
 }
 
-func NewRollup() Rollup {
+func NewRollup(blockChan chan Block) Rollup {
 	return Rollup{
-		Blocks: []Block{GenesisBlock()},
-		soft:   0,
-		firm:   0,
+		Blocks:    []Block{GenesisBlock()},
+		soft:      0,
+		firm:      0,
+		BlockChan: blockChan,
 	}
 }
 
@@ -131,4 +133,16 @@ func (r *Rollup) GetLatestBlock() *Block {
 
 func (r *Rollup) Height() uint32 {
 	return uint32(len(r.Blocks))
+}
+
+func (r *Rollup) AddBlock(block Block) error {
+	if r.GetLatestBlock().Height > 0 && !bytes.Equal(block.ParentHash[:], r.GetLatestBlock().Hash[:]) {
+		return errors.New("invalid prev block hash")
+	}
+	r.Blocks = append(r.Blocks, block)
+	select {
+	case r.BlockChan <- block:
+	default:
+	}
+	return nil
 }

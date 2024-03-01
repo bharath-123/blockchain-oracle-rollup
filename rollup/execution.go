@@ -129,10 +129,8 @@ func (s *ExecutionServiceServerV1Alpha2) ExecuteBlock(ctx context.Context, req *
 		Timestamp:  time.Now(),
 		Txs:        []Transaction{},
 	}
-	if len(req.Transactions) > 0 {
-		block = NewBlock(req.PrevBlockHash, uint32(len(s.rollup.Blocks)), txs, req.Timestamp.AsTime())
-		s.rollup.Blocks = append(s.rollup.Blocks, block)
-	}
+	block = NewBlock(req.PrevBlockHash, uint32(len(s.rollup.Blocks)), txs, req.Timestamp.AsTime())
+	s.rollup.Blocks = append(s.rollup.Blocks, block)
 
 	blockPb, err := block.ToPb()
 	if err != nil {
