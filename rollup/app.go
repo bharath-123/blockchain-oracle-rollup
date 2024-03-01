@@ -132,14 +132,13 @@ func (a *App) Run() {
 	go func() {
 		server := a.makeExecutionServer()
 		log.Debug("Listening to execution service")
-		lis, err := net.Listen("tcp", "localhost:50051")
+		lis, err := net.Listen("tcp", "0.0.0.0:50051")
 		if err != nil {
 			log.Fatalf("failed to listen: %v", err)
 		}
 		log.Debug("Registering execution service")
 		grpcServer := grpc.NewServer()
 		astriaGrpc.RegisterExecutionServiceServer(grpcServer, server)
-		log.Debugf("Serving the grpc Server at %s\n", lis.Addr().String())
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
